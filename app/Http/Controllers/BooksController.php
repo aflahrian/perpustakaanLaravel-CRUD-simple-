@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;// Untuk menggunakan Request
 use App\Models\Books;// Model Books untuk interaksi dengan database
+use App\Models\Rental;// Model Books untuk interaksi dengan database
 use Illuminate\Support\Facades\Validator;
 
 class BooksController extends Controller
@@ -87,11 +88,23 @@ class BooksController extends Controller
 
     public function destroy($id)
     {
-        $book = Books::find($id); // Mencari buku berdasarkan ID
-        if ($book) {
-            $book->delete(); // Menghapus buku dari database
-            return response()->json(['message' => 'Book deleted successfully']); // Mengembalikan pesan sukses
+        // Mengambil buku yang ingin dihapus
+        $book = Book::find($id);
+        if (!$book) {
+            return response()->json(['message' => 'Book not found'], 404);
         }
-        return response()->json(['message' => 'Book not found'], 404); // Mengembalikan pesan jika buku tidak ditemukan
+
+        // Memeriksa apakah buku sedang dipinjam
+        $activeRental = Rental::where('book_id', $id)
+            ->whereNull('returned_at') // Cek apakah masih dalam proses peminjaman
+            ->exists(); // Mengecek ada tidaknya entri
+
+        if ($activeRental) {
+            return response()->json(['message' => 'Cannot delete the book. It is currently borrowed.'], 400);
+        }
+
+        // Menghapus entri buku
+        $book->delete();
+        return response()->json(['message' => 'Book deleted successfully']);
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Customer;// Model Books untuk interaksi dengan database
+use App\Models\Rental;// Model Books untuk interaksi dengan database
 use Illuminate\Support\Facades\Validator;
 
 class CustomerController extends Controller
@@ -81,11 +82,24 @@ class CustomerController extends Controller
 
     public function destroy($id)
     {
+        // Mengambil customer yang ingin dihapus
         $customer = Customer::find($id);
-        if ($customer) {
-            $customer->delete();
-            return response()->json(['message' => 'Customer deleted successfully']);
+        if (!$customer) {
+            return response()->json(['message' => 'Customer not found'], 404);
         }
-        return response()->json(['message' => 'Customer not found'], 404);
+
+        // Memeriksa apakah customer memiliki rental aktif
+        $activeRental = Rental::where('customer_id', $id)
+            ->whereNull('returned_at') // Cek apakah masih dalam proses peminjaman
+            ->exists(); // Mengecek ada tidaknya entri
+
+        if ($activeRental) {
+            return response()->json(['message' => 'Cannot delete the customer. They have active rentals.'], 400);
+        }
+
+        // Menghapus entri customer
+        $customer->delete();
+        return response()->json(['message' => 'Customer deleted successfully']);
+        
     }
 }
